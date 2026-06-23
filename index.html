@@ -195,6 +195,44 @@
   .logos span { background: var(--paper); font-weight: 600; font-size: 16px; color: var(--ink-mute); letter-spacing: -0.01em; padding: 16px 22px; flex: 1 1 auto; text-align: center; }
   .since { font-size: 13.5px; color: var(--ink-mute); margin-top: 24px; }
 
+  /* ---- credentials: five mismatched official marks, made to read as one
+     calm row. Desaturated to a single ink register at rest (so three brand
+     palettes stop fighting the bone), lifting to true color on hover/focus.
+     The white-ground PNGs (SOC 2, HIPAA) lose their box via multiply, so the
+     bone shows through. Same hairline-divided square grammar as .logos. ---- */
+  .creds { margin-top: 40px; }
+  .creds-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-mute); display: block; margin-bottom: 14px;
+  }
+  .creds-strip {
+    list-style: none; display: flex; flex-wrap: wrap; gap: 1px;
+    background: var(--line); border: 1px solid var(--line);
+  }
+  .creds-cell {
+    flex: 1 1 0; min-width: 132px; background: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px 24px; min-height: 92px;
+  }
+  /* the soft seam between compliance seals and cloud partners */
+  .creds-gap { box-shadow: inset 3px 0 0 var(--surface-2); }
+  /* badges are pre-rendered as navy silhouettes, so five marks in three colour
+     systems read as one ink family. Plain <img>, baked navy — robust to render. */
+  .creds-cell img {
+    max-height: 30px; width: auto; max-width: 100%; display: block;
+    opacity: 0.9; transition: opacity .35s ease, transform .3s ease;
+  }
+  .creds-cell img.creds-seal  { max-height: 36px; }   /* sized close to the wordmarks */
+  .creds-cell img.creds-glyph { max-height: 26px; }   /* the small Azure glyph */
+  .creds-strip:hover img { opacity: 0.5; }                          /* dim the rest... */
+  .creds-cell:hover img,
+  .creds-cell:focus-within img { opacity: 1; transform: translateY(-1px); } /* ...lift the one */
+  @media (prefers-reduced-motion: reduce) { .creds-cell img { transition: none; transform: none; } }
+  @media (max-width: 640px) {
+    .creds-cell { flex-basis: 50%; min-width: 0; }
+    .creds-gap { box-shadow: none; }
+  }
+
   /* ---- case-study viewer: the proof rotates through 9 real builds.
      The field on the right is the hero's grammar again — the SAME tiles
      rearranged per study, one yellow tile travelling as the through-line. */
@@ -503,6 +541,17 @@
         </div>
       </div>
       <p class="since reveal">Since 2009. Trusted by regulated industries. Nearshore teams operating in your time zone.</p>
+
+      <div class="creds reveal">
+        <span class="creds-label">Audited &amp; accredited</span>
+        <ul class="creds-strip" aria-label="Certifications and platform partnerships">
+          <li class="creds-cell"><img class="creds-seal" src="assets/badges/soc2_navy.png" alt="SOC 2 Type II certified" decoding="async" /></li>
+          <li class="creds-cell"><img class="creds-seal" src="assets/badges/hipaa_navy.png" alt="HIPAA compliant" decoding="async" /></li>
+          <li class="creds-cell creds-gap"><img src="assets/badges/aws-partner-navy.svg" alt="AWS Partner" decoding="async" /></li>
+          <li class="creds-cell"><img src="assets/badges/databricks-partner-navy.svg" alt="Databricks Partner" decoding="async" /></li>
+          <li class="creds-cell"><img class="creds-glyph" src="assets/badges/azure_navy.png" alt="Microsoft Azure" decoding="async" /></li>
+        </ul>
+      </div>
     </div>
   </section>
 
@@ -1057,12 +1106,29 @@
   }
 
   var active = [], free = pool.slice();
-  function place(el, nc){ el.setAttribute('fill', nc.spark ? YEL : BLUE); el.style.transform = tr(nc.c, nc.r, 1); el.style.opacity = '1'; }
+  // tapered slate, same ramp as the hero mark and the step numerals: deep at the
+  // letter's top-left, lighter toward its bottom-right (normalised over the letter box).
+  var SH_DEEP = [78, 92, 140], SH_LITE = [150, 162, 205];
+  function shade(c, r) {
+    var t = 0.72 * ((c - COL0) / (LW - 1)) + 0.28 * ((r - ROW0) / (LH - 1));
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    var ch = function (i) { return Math.round(SH_DEEP[i] + (SH_LITE[i] - SH_DEEP[i]) * t); };
+    return 'rgb(' + ch(0) + ',' + ch(1) + ',' + ch(2) + ')';
+  }
+  function place(el, nc){ el.setAttribute('fill', nc.spark ? YEL : shade(nc.c, nc.r)); el.style.transform = tr(nc.c, nc.r, 1); el.style.opacity = '1'; }
   function bloom(el, nc, animate){
-    el.setAttribute('fill', nc.spark ? YEL : BLUE);
-    el.style.transform = tr(nc.c, nc.r, animate ? 0.4 : 1);
-    el.style.opacity = animate ? '0' : '1';
-    if (animate) requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.style.transform = tr(nc.c, nc.r, 1); el.style.opacity = '1'; }); });
+    el.setAttribute('fill', nc.spark ? YEL : shade(nc.c, nc.r));
+    if (!animate) { el.style.transform = tr(nc.c, nc.r, 1); el.style.opacity = '1'; return; }
+    // Grow in place, set synchronously so a mid-morph re-layout can't strand the
+    // tile at a stale centre: start small+invisible, force a reflow, then animate
+    // to full size at the SAME (current) coordinates the CSS transition handles.
+    el.style.transition = 'none';
+    el.style.transform = tr(nc.c, nc.r, 0.4);
+    el.style.opacity = '0';
+    void el.getBoundingClientRect();
+    el.style.transition = '';
+    el.style.transform = tr(nc.c, nc.r, 1);
+    el.style.opacity = '1';
   }
   function retire(pt){ pt.el.style.transform = tr(pt.c, pt.r, 0.4); pt.el.style.opacity = '0'; }
 
@@ -1212,6 +1278,14 @@
     '3': [[0,0],[1,0],[2,0],[2,1],[0,2],[1,2],[2,2],[2,3],[0,4],[1,4],[2,4]]
   };
   var S = 11, G = 3;
+  // same tapered slate-blue as the hero mark: deep at the top-left, lighter
+  // toward the bottom-right, so the numerals carry the hero's dimension.
+  var SH_DEEP = [78, 92, 140], SH_LITE = [150, 162, 205];
+  function shade(c, r) {
+    var t = 0.72 * (c / 2) + 0.28 * (r / 4);
+    var ch = function (i) { return Math.round(SH_DEEP[i] + (SH_LITE[i] - SH_DEEP[i]) * t); };
+    return 'rgb(' + ch(0) + ',' + ch(1) + ',' + ch(2) + ')';
+  }
   function draw() {
     document.querySelectorAll('.mech-num').forEach(function (svg) {
       if (svg.childNodes.length) return;
@@ -1223,7 +1297,7 @@
         r.setAttribute('y', p[1] * (S + G));
         r.setAttribute('width', S);
         r.setAttribute('height', S);
-        r.setAttribute('fill', (p[0] + ',' + p[1]) === spark ? '#E6C463' : '#7283B5');
+        r.setAttribute('fill', (p[0] + ',' + p[1]) === spark ? '#E6C463' : shade(p[0], p[1]));
         svg.appendChild(r);
       });
     });
